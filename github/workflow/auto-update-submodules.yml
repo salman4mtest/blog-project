@@ -1,0 +1,38 @@
+name: Auto Update Submodules
+
+on:
+  repository_dispatch:
+    types: 
+      - update-user
+      - update-shopcart
+      - update-wishlist
+      - update-order
+      - update-analytics
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Update submodules
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Update all submodules to latest
+          git submodule update --remote --merge
+          
+          # Commit if there are changes
+          if [[ -n $(git status -s) ]]; then
+            git add .
+            git commit -m "🤖 Auto-update: ${{ github.event.action }} service"
+            git push
+            echo "✅ Submodules updated successfully"
+          else
+            echo "ℹ️ No updates needed"
+          fi
