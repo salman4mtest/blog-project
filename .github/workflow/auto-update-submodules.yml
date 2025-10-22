@@ -3,12 +3,8 @@ name: Auto Update Submodules
 on:
   repository_dispatch:
     types: 
-      - update-user
-      - update-shopcart
-      - update-wishlist
-      - update-order
-      - update-analytics
-
+      - update-ecommerce-shopcart-service
+      
 jobs:
   update:
     runs-on: ubuntu-latest
