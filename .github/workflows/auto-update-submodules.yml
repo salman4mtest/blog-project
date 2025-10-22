@@ -36,10 +36,7 @@ jobs:
             echo "✅ Submodule updated! Committing changes..."
             
             git add ecommerce-shopcart-service
-            git commit -m "🤖 Auto-update: shopcart service to latest commit
-            
-Triggered by: ${{ github.event.client_payload.ref }}
-Commit SHA: ${{ github.event.client_payload.sha }}"
+            git commit -m "🤖 Auto-update: shopcart service - Triggered by ${{ github.event.client_payload.ref }} - SHA: ${{ github.event.client_payload.sha }}"
             
             echo "⬆️ Pushing to main repo..."
             git push origin main
