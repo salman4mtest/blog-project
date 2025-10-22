@@ -4,6 +4,7 @@ on:
   repository_dispatch:
     types: 
       - update-ecommerce-shopcart-service
+  workflow_dispatch:
       
 jobs:
   update:
@@ -12,23 +13,51 @@ jobs:
       - name: Checkout main repo
         uses: actions/checkout@v3
         with:
-          submodules: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MAIN_REPO_PAT }}
+          # Don't checkout submodules automatically - we'll do it manually
           
-      - name: Update submodules
+      - name: Initialize and update submodule
         run: |
-          git config user.name "salman4mtest"
-          git config user.email "salmanmemmedli01@gmail.com"
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
           
-          # Update all submodules to latest
-          git submodule update --remote --merge
+          echo "🔄 Initializing submodules..."
+          git submodule init
           
-          # Commit if there are changes
-          if [[ -n $(git status -s) ]]; then
-            git add .
-            git commit -m "🤖 Auto-update: ${{ github.event.action }} service"
-            git push
-            echo "✅ Submodules updated successfully"
+          echo "📥 Updating shopcart submodule to latest..."
+          # This fetches and checks out the latest commit from the submodule's main branch
+          git submodule update --remote --force ecommerce-shopcart-service
+          
+          echo "🔍 Checking for changes..."
+          git status
+          
+          # Check if the submodule pointer changed
+          if [[ -n $(git status --porcelain ecommerce-shopcart-service) ]]; then
+            echo "✅ Submodule updated! Committing changes..."
+            
+            git add ecommerce-shopcart-service
+            git commit -m "🤖 Auto-update: shopcart service to latest commit
+            
+Triggered by: ${{ github.event.client_payload.ref }}
+Commit SHA: ${{ github.event.client_payload.sha }}"
+            
+            echo "⬆️ Pushing to main repo..."
+            git push origin main
+            
+            echo "✅ Shopcart submodule updated successfully!"
+            echo "📝 Main repo now points to latest shopcart commit"
           else
-            echo "ℹ️ No updates needed"
+            echo "ℹ️ No updates needed - submodule already at latest version"
           fi
+          
+      - name: Show final submodule status
+        if: always()
+        run: |
+          echo "📊 Final submodule status:"
+          git submodule status
+          
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Failed to update shopcart submodule"
+          echo "Check the error messages above for details"

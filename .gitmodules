@@ -1,3 +1,3 @@
 [submodule "ecommerce-shopcart-service"]
 	path = ecommerce-shopcart-service
-	url = https://github.com/Salman4M/ecommerce-shopcart-service
+	url = https://github.com/Salman4M/ecommerce-shopcart-service.git
