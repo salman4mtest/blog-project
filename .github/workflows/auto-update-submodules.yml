@@ -24,16 +24,41 @@ jobs:
           echo "🔄 Initializing submodules..."
           git submodule init
           
-          echo "📥 Updating shopcart submodule to latest..."
-          # This fetches and checks out the latest commit from the submodule's main branch
-          git submodule update --remote --force ecommerce-shopcart-service
+          echo "📊 Current submodule status BEFORE update:"
+          git submodule status
           
-          echo "🔍 Checking for changes..."
+          echo ""
+          echo "📥 Fetching latest from shopcart repo..."
+          cd ecommerce-shopcart-service
+          git fetch origin main
+          
+          echo ""
+          echo "📍 Current commit in submodule:"
+          git rev-parse HEAD
+          
+          echo ""
+          echo "📍 Latest commit in origin/main:"
+          git rev-parse origin/main
+          
+          echo ""
+          echo "🔀 Checking out latest commit..."
+          git checkout origin/main
+          
+          cd ..
+          
+          echo ""
+          echo "📊 Submodule status AFTER checkout:"
+          git submodule status
+          
+          echo ""
+          echo "🔍 Checking if main repo has changes..."
           git status
+          git diff --cached ecommerce-shopcart-service
           
           # Check if the submodule pointer changed
           if [[ -n $(git status --porcelain ecommerce-shopcart-service) ]]; then
-            echo "✅ Submodule updated! Committing changes..."
+            echo ""
+            echo "✅ Submodule pointer changed! Committing..."
             
             git add ecommerce-shopcart-service
             git commit -m "🤖 Auto-update: shopcart service - Triggered by ${{ github.event.client_payload.ref }} - SHA: ${{ github.event.client_payload.sha }}"
@@ -44,7 +69,11 @@ jobs:
             echo "✅ Shopcart submodule updated successfully!"
             echo "📝 Main repo now points to latest shopcart commit"
           else
-            echo "ℹ️ No updates needed - submodule already at latest version"
+            echo ""
+            echo "ℹ️ No changes detected in submodule pointer"
+            echo "This could mean:"
+            echo "  - The submodule was already at the latest commit"
+            echo "  - OR the checkout didn't work as expected"
           fi
           
       - name: Show final submodule status
