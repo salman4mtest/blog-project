@@ -1,0 +1,74 @@
+name: Sync Changes Back to Service Repos
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ecommerce-shopcart-service/**'
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Which service to sync (shopcart/user/wishlist/order/analytic)'
+        required: true
+        default: 'shopcart'
+
+jobs:
+  sync-to-shopcart:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.MAIN_REPO_PAT }}
+          fetch-depth: 0
+
+      - name: Checkout shopcart service repo
+        uses: actions/checkout@v3
+        with:
+          repository: Salman4M/ecommerce-shopcart-service
+          token: ${{ secrets.SHOPCART_SERVICE_PAT }}
+          path: shopcart-service-repo
+          fetch-depth: 0
+
+      - name: Sync changes from main repo to service repo
+        run: |
+          git config --global user.name "Main Repo Sync Bot"
+          git config --global user.email "sync@mainrepo.com"
+          echo "Checking what changed in ecommerce-shopcart-service folder..."
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD -- ecommerce-shopcart-service/ || echo "")
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No changes detected in shopcart service"
+            exit 0
+          fi
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo ""
+          echo "Copying changed files to service repo..."
+          rsync -av --delete --exclude='.git' ecommerce-shopcart-service/ shopcart-service-repo/
+          cd shopcart-service-repo
+          echo ""
+          echo "Checking if there are changes to commit..."
+          git status
+          if [[ -n $(git status --porcelain) ]]; then
+            echo ""
+            echo "Changes detected! Committing to service repo..."
+            git add .
+            git commit -m "sync: Update from main repo"
+            echo ""
+            echo "Pushing to shopcart service repo..."
+            git push origin main
+            echo ""
+            echo "Successfully synced changes to shopcart service"
+          else
+            echo ""
+            echo "No changes to sync"
+          fi
+
+      - name: Notify on success
+        if: success()
+        run: echo "Sync completed successfully"
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Failed to sync changes to shopcart service"
