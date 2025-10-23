@@ -5,7 +5,7 @@ on:
     types: 
       - update-ecommerce-shopcart-service
   workflow_dispatch:
-      
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -14,99 +14,66 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.MAIN_REPO_PAT }}
-          fetch-depth: 0  # Get full history
-          
+          fetch-depth: 0
+          submodules: false
+
       - name: Configure Git authentication
         run: |
-          # Configure Git to use the PAT token for authentication
           git config --global url."https://x-access-token:${{ secrets.MAIN_REPO_PAT }}@github.com/".insteadOf "https://github.com/"
-          
-      - name: Initialize and update submodule
+
+      - name: Clean and reinitialize submodule
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
-          
-          echo "🔄 Syncing submodule configuration..."
-          git submodule sync --recursive
-          
-          echo "🔄 Initializing submodules..."
-          git submodule init
-          
-          echo "📊 Current submodule status BEFORE update:"
-          git submodule status
-          
-          echo ""
-          echo "🔧 Checking submodule remote URL..."
+          echo "Current .gitmodules content:"
+          cat .gitmodules
+          echo "Removing old submodule state..."
+          rm -rf ecommerce-shopcart-service
+          rm -rf .git/modules/ecommerce-shopcart-service
+          echo "Syncing submodule configuration..."
+          git submodule sync
+          echo "Initializing submodule..."
+          git submodule init ecommerce-shopcart-service
+          echo "Cloning submodule from correct URL..."
+          git submodule update --init --remote --force ecommerce-shopcart-service
+          echo "Checking submodule configuration..."
           cd ecommerce-shopcart-service
           echo "Remote URL:"
           git remote -v
-          
-          echo ""
-          echo "📥 Fetching latest from shopcart repo..."
-          git fetch origin main --verbose
-          
-          echo ""
-          echo "📍 Current commit in submodule:"
-          CURRENT_COMMIT=$(git rev-parse HEAD)
-          echo $CURRENT_COMMIT
-          
-          echo ""
-          echo "📍 Latest commit in origin/main:"
-          LATEST_COMMIT=$(git rev-parse origin/main)
-          echo $LATEST_COMMIT
-          
-          if [ "$CURRENT_COMMIT" = "$LATEST_COMMIT" ]; then
-            echo ""
-            echo "ℹ️ Submodule is already at latest commit"
-            echo "No update needed"
-            cd ..
-            exit 0
-          fi
-          
-          echo ""
-          echo "🔀 Checking out latest commit..."
-          git checkout origin/main
-          
+          echo "Current commit:"
+          git log -1 --oneline
+          LATEST_COMMIT=$(git rev-parse HEAD)
+          echo "Commit SHA: $LATEST_COMMIT"
           cd ..
-          
-          echo ""
-          echo "📊 Submodule status AFTER checkout:"
+          echo "Submodule status:"
           git submodule status
-          
-          echo ""
-          echo "🔍 Checking if main repo has changes..."
-          git status
-          
-          # Check if the submodule pointer changed
+          echo "Checking if main repo needs update..."
+          git status --porcelain
           if [[ -n $(git status --porcelain ecommerce-shopcart-service) ]]; then
-            echo ""
-            echo "✅ Submodule pointer changed! Committing..."
-            
+            echo "Submodule has been updated! Committing..."
+            git add .gitmodules
             git add ecommerce-shopcart-service
-            git commit -m "🤖 Auto-update: shopcart service - SHA: ${{ github.event.client_payload.sha }}"
-            
-            echo "⬆️ Pulling latest changes first..."
+            git commit -m "Auto-update shopcart service to $LATEST_COMMIT"
+            echo "Pulling latest changes first..."
             git pull --rebase origin main || git pull origin main
-            
-            echo "⬆️ Pushing to main repo..."
+            echo "Pushing to main repo..."
             git push origin main
-            
-            echo "✅ Shopcart submodule updated successfully!"
-            echo "📝 Main repo now points to commit: $LATEST_COMMIT"
+            echo "SUCCESS! Shopcart submodule updated"
+            echo "Main repo now points to: $LATEST_COMMIT"
           else
-            echo ""
-            echo "⚠️ No changes detected in submodule pointer after checkout"
-            echo "This shouldn't happen - please check the logs above"
+            echo "No changes needed"
           fi
-          
-      - name: Show final submodule status
+
+      - name: Show final status
         if: always()
         run: |
-          echo "📊 Final submodule status:"
+          echo "Final submodule status:"
           git submodule status
-          
+          echo "Final submodule remote:"
+          cd ecommerce-shopcart-service && git remote -v || echo "Submodule not found"
+
       - name: Notify on failure
         if: failure()
         run: |
-          echo "❌ Failed to update shopcart submodule"
-          echo "Check the error messages above for details"
+          echo "Failed to update shopcart submodule"
+          echo "Please check the error messages above"
