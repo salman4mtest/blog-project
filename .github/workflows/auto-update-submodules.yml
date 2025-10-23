@@ -26,6 +26,9 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           
+          echo "🔄 Syncing submodule configuration..."
+          git submodule sync --recursive
+          
           echo "🔄 Initializing submodules..."
           git submodule init
           
@@ -33,17 +36,32 @@ jobs:
           git submodule status
           
           echo ""
-          echo "📥 Fetching latest from shopcart repo..."
+          echo "🔧 Checking submodule remote URL..."
           cd ecommerce-shopcart-service
-          git fetch origin main
+          echo "Remote URL:"
+          git remote -v
+          
+          echo ""
+          echo "📥 Fetching latest from shopcart repo..."
+          git fetch origin main --verbose
           
           echo ""
           echo "📍 Current commit in submodule:"
-          git rev-parse HEAD
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          echo $CURRENT_COMMIT
           
           echo ""
           echo "📍 Latest commit in origin/main:"
-          git rev-parse origin/main
+          LATEST_COMMIT=$(git rev-parse origin/main)
+          echo $LATEST_COMMIT
+          
+          if [ "$CURRENT_COMMIT" = "$LATEST_COMMIT" ]; then
+            echo ""
+            echo "ℹ️ Submodule is already at latest commit"
+            echo "No update needed"
+            cd ..
+            exit 0
+          fi
           
           echo ""
           echo "🔀 Checking out latest commit..."
@@ -58,7 +76,6 @@ jobs:
           echo ""
           echo "🔍 Checking if main repo has changes..."
           git status
-          git diff --cached ecommerce-shopcart-service
           
           # Check if the submodule pointer changed
           if [[ -n $(git status --porcelain ecommerce-shopcart-service) ]]; then
@@ -66,19 +83,20 @@ jobs:
             echo "✅ Submodule pointer changed! Committing..."
             
             git add ecommerce-shopcart-service
-            git commit -m "🤖 Auto-update: shopcart service - Triggered by ${{ github.event.client_payload.ref }} - SHA: ${{ github.event.client_payload.sha }}"
+            git commit -m "🤖 Auto-update: shopcart service - SHA: ${{ github.event.client_payload.sha }}"
+            
+            echo "⬆️ Pulling latest changes first..."
+            git pull --rebase origin main || git pull origin main
             
             echo "⬆️ Pushing to main repo..."
             git push origin main
             
             echo "✅ Shopcart submodule updated successfully!"
-            echo "📝 Main repo now points to latest shopcart commit"
+            echo "📝 Main repo now points to commit: $LATEST_COMMIT"
           else
             echo ""
-            echo "ℹ️ No changes detected in submodule pointer"
-            echo "This could mean:"
-            echo "  - The submodule was already at the latest commit"
-            echo "  - OR the checkout didn't work as expected"
+            echo "⚠️ No changes detected in submodule pointer after checkout"
+            echo "This shouldn't happen - please check the logs above"
           fi
           
       - name: Show final submodule status
